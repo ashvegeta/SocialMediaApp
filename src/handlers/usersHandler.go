@@ -32,7 +32,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	err := body.Decode(&user)
 	if err != nil {
 		log.Printf("%v", err)
-		http.Error(w, "Error in Decoding Request Body", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -43,7 +43,7 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("%v", err)
-		http.Error(w, "error adding user", http.StatusInternalServerError)
+		http.Error(w, "error adding user :"+err.Error(), http.StatusInternalServerError)
 	}
 }
 
