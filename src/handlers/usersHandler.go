@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"reflect"
@@ -11,6 +10,8 @@ import (
 	"socialmediaapp/src/models"
 
 	"cloud.google.com/go/firestore"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -22,7 +23,6 @@ var (
 
 func AddUser(w http.ResponseWriter, r *http.Request) {
 	body := json.NewDecoder(r.Body)
-
 	if body == nil {
 		http.Error(w, "400 : Bad Request, Body is Empty", http.StatusBadRequest)
 		return
@@ -36,30 +36,96 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// check if userId exists
+	if user.UserId == "" {
+		http.Error(w, "field userID is empty", http.StatusBadRequest)
+		return
+	}
+
 	_, err = usersCollection.Doc(user.UserId).Set(context.Background(), map[string]interface{}{
 		"uName":   user.UserName,
 		"emailId": user.EmailId,
 	})
-
 	if err != nil {
 		log.Printf("%v", err)
 		http.Error(w, "error adding user :"+err.Error(), http.StatusInternalServerError)
 	}
+
+	w.Write([]byte("Added User Successfully"))
 }
 
-func DelUser(userId string) error {
-	_, err := usersCollection.Doc(userId).Delete(context.Background())
-	if err != nil {
-		return fmt.Errorf("error deleting user %v", userId)
+func DelUser(w http.ResponseWriter, r *http.Request) {
+	body := json.NewDecoder(r.Body)
+	if body == nil {
+		http.Error(w, "400 : Bad Request, Body is Empty", http.StatusBadRequest)
+		return
 	}
 
-	return nil
-}
+	var user models.User
+	err := body.Decode(&user)
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-func UpdateUserInfo(user models.User) error {
 	// check if userId exists
 	if user.UserId == "" {
-		return fmt.Errorf("field userID is empty")
+		http.Error(w, "field userID is empty", http.StatusBadRequest)
+		return
+	}
+
+	docRef := usersCollection.Doc(user.UserId)
+
+	// Check if the document exists
+	docSnap, err := docRef.Get(context.Background())
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			// Document does not exist, return 404 Not Found
+			http.Error(w, "Document not found", http.StatusNotFound)
+			return
+		}
+
+		// Other errors
+		http.Error(w, "Failed to check document existence during deletion", http.StatusInternalServerError)
+		return
+	}
+
+	if !docSnap.Exists() {
+		// Document does not exist, return 404 Not Found
+		http.Error(w, "Document not found", http.StatusNotFound)
+		return
+	}
+
+	// Proceed with the deletion if the document exists
+	_, err = docRef.Delete(ctx)
+	if err != nil {
+		http.Error(w, "Failed to delete document", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("Deleted User Successfully"))
+}
+
+func UpdateUserInfo(w http.ResponseWriter, r *http.Request) {
+	body := json.NewDecoder(r.Body)
+	if body == nil {
+		http.Error(w, "400 : Bad Request, Body is Empty", http.StatusBadRequest)
+		return
+	}
+
+	var user models.User
+	err := body.Decode(&user)
+	if err != nil {
+		log.Printf("%v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// check if userId exists
+	if user.UserId == "" {
+		http.Error(w, "field userID is empty", http.StatusBadRequest)
+		return
 	}
 
 	// Get the Value and type of the struct
@@ -78,30 +144,11 @@ func UpdateUserInfo(user models.User) error {
 		updatedData[fieldType.Name] = field.Interface()
 	}
 
-	_, err := usersCollection.Doc(user.UserId).Set(context.Background(), updatedData, firestore.MergeAll)
+	_, err = usersCollection.Doc(user.UserId).Set(context.Background(), updatedData, firestore.MergeAll)
 	if err != nil {
-		return fmt.Errorf("error updating user %v", user.UserId)
+		http.Error(w, "error updating user"+user.UserId+": "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	return nil
-}
-
-func AddPost() {
-
-}
-
-func DelPost() {
-
-}
-
-func UpdatePost() {
-
-}
-
-func AddConnection() {
-
-}
-
-func DelConnection() {
-
+	w.Write([]byte("Updated User successfully"))
 }
