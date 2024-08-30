@@ -63,10 +63,10 @@ func main() {
 	fsClient := Firestore(ctx2)
 	defer fsClient.Close()
 
-	_, _ , err := fsClient.Collection("users").Add(ctx2, map[string]interface{}{
+	_, _, err := fsClient.Collection("users").Add(ctx2, map[string]interface{}{
 		"first": "Ada",
-        "last":  "Lovelace",
-        "born":  1815,
+		"last":  "Lovelace",
+		"born":  1815,
 	})
 
 	if err != nil {

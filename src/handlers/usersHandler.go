@@ -43,8 +43,13 @@ func AddUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = usersCollection.Doc(user.UserId).Set(context.Background(), map[string]interface{}{
-		"uName":   user.UserName,
-		"emailId": user.EmailId,
+		"UserName":      user.UserName,
+		"EmailId":       user.EmailId,
+		"Visibility":    "private",
+		"Posts":         []models.Post{},
+		"Friends":       []string{},
+		"Notifications": []models.Notification{},
+		"ChatHistory":   [][]models.Message{},
 	})
 	if err != nil {
 		log.Printf("%v", err)
