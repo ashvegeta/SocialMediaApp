@@ -226,11 +226,11 @@ func DelConnection(w http.ResponseWriter, r *http.Request) {
 		// Remove connection from "From" user
 		fromUserData := fromUser.Data()
 		if friends, ok := fromUserData["Friends"].([]interface{}); ok {
-			friends = removeElement(friends, ConnReq.To)
+			friends = removeFriends(friends, ConnReq.To)
 			if len(friends) == 0 {
 				fromUserData["Friends"] = []string{}
 			} else {
-				fromUserData["Friends"] = removeElement(friends, ConnReq.To)
+				fromUserData["Friends"] = friends
 			}
 		} else {
 			return fmt.Errorf("invalid Friends field type for From user")
@@ -239,11 +239,11 @@ func DelConnection(w http.ResponseWriter, r *http.Request) {
 		// Remove connection from "To" user
 		toUserData := toUser.Data()
 		if friends, ok := toUserData["Friends"].([]interface{}); ok {
-			friends = removeElement(friends, ConnReq.From)
+			friends = removeFriends(friends, ConnReq.From)
 			if len(friends) == 0 {
 				toUserData["Friends"] = []string{}
 			} else {
-				toUserData["Friends"] = removeElement(friends, ConnReq.From)
+				toUserData["Friends"] = friends
 			}
 		} else {
 			return fmt.Errorf("invalid Friends field type for To user")
@@ -269,7 +269,7 @@ func DelConnection(w http.ResponseWriter, r *http.Request) {
 }
 
 // Helper function to remove an element from a slice
-func removeElement(slice []interface{}, elem string) []interface{} {
+func removeFriends(slice []interface{}, elem string) []interface{} {
 	var result []interface{}
 	for _, v := range slice {
 		if v != elem {

@@ -13,4 +13,5 @@ func UserRouter(router *mux.Router) {
 	router.HandleFunc("/conn/request", handlers.RequestConnection).Methods("PUT")
 	router.HandleFunc("/conn/add", handlers.AddConnection).Methods("PUT")
 	router.HandleFunc("/conn/delete", handlers.DelConnection).Methods("POST")
+	router.HandleFunc("/notification/delete", handlers.DelNotification).Methods("POST")
 }

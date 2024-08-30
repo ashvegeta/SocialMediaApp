@@ -18,7 +18,7 @@ type Notification struct {
 	IsRead    bool
 	TimeStamp int64
 	Content   string
-	CType     string // one of ("connReq", "connAccepted", "media", "message")
+	CType     string // one of ("connReq", "connAccepted", "media")
 	MetaData  map[string]string
 }
 
