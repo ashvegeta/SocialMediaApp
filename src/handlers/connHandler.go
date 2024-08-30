@@ -54,7 +54,7 @@ func RequestConnection(w http.ResponseWriter, r *http.Request) {
 			NID:       fmt.Sprintf(ConnReq.To+"_%d", time.Now().UTC().UnixMilli()),
 			IsRead:    false,
 			TimeStamp: time.Now().UTC().UnixMilli(),
-			CType:     "connection",
+			CType:     "connRequest",
 			MetaData: map[string]string{
 				"From":     ConnReq.From,
 				"UserName": fromUserData["UserName"].(string),
@@ -117,15 +117,16 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data1 := fromUser.Data()
-	data2 := toUser.Data()
+	fromUserData := fromUser.Data()
+	toUserData := toUser.Data()
 
-	if friends, ok := data1["Friends"].([]interface{}); ok {
-		data1["Friends"] = append(friends, ConnReq.To)
+	// Add to "To" user's friend list
+	if friends, ok := fromUserData["Friends"].([]interface{}); ok {
+		fromUserData["Friends"] = append(friends, ConnReq.To)
 
 		_, err = usersCollection.Doc(ConnReq.From).Update(ctx, []firestore.Update{{
 			Path:  "Friends",
-			Value: data1["Friends"],
+			Value: fromUserData["Friends"],
 		},
 		})
 		if err != nil {
@@ -137,12 +138,13 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: 'Friends' field is not of type []interface{}")
 	}
 
-	if friends, ok := data2["Friends"].([]interface{}); ok {
-		data2["Friends"] = append(friends, ConnReq.From)
+	// Add to "from" user's friend list
+	if friends, ok := toUserData["Friends"].([]interface{}); ok {
+		toUserData["Friends"] = append(friends, ConnReq.From)
 
 		_, err = usersCollection.Doc(ConnReq.To).Update(ctx, []firestore.Update{{
 			Path:  "Friends",
-			Value: data2["Friends"],
+			Value: toUserData["Friends"],
 		},
 		})
 		if err != nil {
@@ -152,6 +154,33 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		fmt.Println("Error: 'Friends' field is not of type []interface{}")
+	}
+
+	// Send a notification to "From" user that his connection got accepted
+	if notfs, ok := fromUserData["Notifications"].([]interface{}); ok {
+		fromUserData["Notifications"] = append(notfs, models.Notification{
+			NID:       fmt.Sprintf(ConnReq.From+"_%d", time.Now().UTC().UnixMilli()),
+			IsRead:    false,
+			TimeStamp: time.Now().UTC().UnixMilli(),
+			Content:   "Your are now connected with " + toUserData["UserName"].(string),
+			CType:     "connAccepted",
+			MetaData: map[string]string{
+				"To":       ConnReq.To,
+				"UserName": toUserData["UserName"].(string),
+			},
+		})
+
+		_, err := usersCollection.Doc(ConnReq.From).Update(ctx, []firestore.Update{{
+			Path:  "Notifications",
+			Value: fromUserData["Notifications"],
+		},
+		})
+		if err != nil {
+			http.Error(w, "500 : Error While Updating Notifications: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		fmt.Println("Error: 'Notifications' field is not of type []interface{}")
 	}
 
 	w.Write([]byte("Added User Connection Successfully"))
