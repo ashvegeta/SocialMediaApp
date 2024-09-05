@@ -7,6 +7,7 @@ import (
 	"os"
 	"socialmediaapp/src/routers"
 
+	ghandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -14,6 +15,12 @@ func main() {
 	// Init Routers and Handlers
 	r := mux.NewRouter()
 	routers.UserRouter(r)
+
+	corsHandler := ghandlers.CORS(
+		ghandlers.AllowedOrigins([]string{"*"}),                                       // Allow all origins; replace "*" with specific origins if needed
+		ghandlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}), // Allowed HTTP methods
+		ghandlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),           // Allowed headers
+	)
 
 	// setup http server
 	port := os.Getenv("PORT")
@@ -23,7 +30,7 @@ func main() {
 	}
 
 	httpsrv := &http.Server{
-		Handler: r,
+		Handler: corsHandler(r),
 		Addr:    ":" + port,
 	}
 

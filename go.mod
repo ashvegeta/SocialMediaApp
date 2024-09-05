@@ -2,7 +2,10 @@ module socialmediaapp
 
 go 1.22.5
 
-require cloud.google.com/go/storage v1.43.0
+require (
+	cloud.google.com/go/storage v1.43.0
+	github.com/gorilla/handlers v1.5.2
+)
 
 require cloud.google.com/go/longrunning v0.5.11 // indirect
 
