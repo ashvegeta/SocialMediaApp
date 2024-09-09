@@ -37,10 +37,11 @@ type Message struct {
 }
 
 type Post struct {
-	PostId          string
-	User            string
-	Content         string
-	CreatedAt       time.Time
-	LastedUpdatedAt time.Time
-	Tags            []string
+	PostId        string
+	UserId        string
+	Content       string
+	MediaURL      string
+	CreatedAt     time.Time
+	LastUpdatedAt time.Time
+	Tags          []string
 }
