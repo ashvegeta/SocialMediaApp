@@ -37,7 +37,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 	// Add the new post to the user's "posts" array
 	_, err = userDocRef.Update(context.Background(), []firestore.Update{
 		{
-			Path:  "posts",
+			Path:  "Posts",
 			Value: firestore.ArrayUnion(newPost),
 		},
 	})
