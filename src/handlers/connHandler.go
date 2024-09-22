@@ -79,6 +79,8 @@ func RequestConnection(w http.ResponseWriter, r *http.Request) {
 
 // If User decides to accept the connection request
 func AddConnection(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	body := json.NewDecoder(r.Body)
 	if body == nil {
 		http.Error(w, "400 : Bad Request, Body is Empty", http.StatusBadRequest)
@@ -93,13 +95,13 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// check if userId exists
-	if ConnReq.From == "" || ConnReq.To == "" {
-		http.Error(w, "field userID is empty", http.StatusBadRequest)
+	// Check if userId exists
+	if ConnReq.From == "" || ConnReq.To == "" || ConnReq.NID == "" {
+		http.Error(w, "field From/To or NID is empty", http.StatusBadRequest)
 		return
 	}
 
-	// check if users exists in DB and id is valid
+	// Check if users exist in DB and id is valid
 	fromUser, err1 := usersCollection.Doc(ConnReq.From).Get(ctx)
 	toUser, err2 := usersCollection.Doc(ConnReq.To).Get(ctx)
 
@@ -127,8 +129,7 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		_, err = usersCollection.Doc(ConnReq.From).Update(ctx, []firestore.Update{{
 			Path:  "Friends",
 			Value: fromUserData["Friends"],
-		},
-		})
+		}})
 		if err != nil {
 			http.Error(w, "Error While Updating Connection: "+err.Error(), http.StatusInternalServerError)
 			log.Printf("%v", err.Error())
@@ -138,15 +139,14 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: 'Friends' field is not of type []interface{}")
 	}
 
-	// Add to "from" user's friend list
+	// Add to "From" user's friend list
 	if friends, ok := toUserData["Friends"].([]interface{}); ok {
 		toUserData["Friends"] = append(friends, ConnReq.From)
 
 		_, err = usersCollection.Doc(ConnReq.To).Update(ctx, []firestore.Update{{
 			Path:  "Friends",
 			Value: toUserData["Friends"],
-		},
-		})
+		}})
 		if err != nil {
 			http.Error(w, "Error While Updating Connection: "+err.Error(), http.StatusInternalServerError)
 			log.Printf("%v", err.Error())
@@ -156,13 +156,13 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: 'Friends' field is not of type []interface{}")
 	}
 
-	// Send a notification to "From" user that his connection got accepted
+	// Send a notification to the "From" user that their connection request was accepted
 	if notfs, ok := fromUserData["Notifications"].([]interface{}); ok {
 		fromUserData["Notifications"] = append(notfs, models.Notification{
 			NID:       fmt.Sprintf(ConnReq.From+"_%d", time.Now().UTC().UnixMilli()),
 			IsRead:    false,
 			TimeStamp: time.Now().UTC().UnixMilli(),
-			Content:   "Your are now connected with " + toUserData["UserName"].(string),
+			Content:   "You are now connected with " + toUserData["UserName"].(string),
 			CType:     "connAccepted",
 			MetaData: map[string]string{
 				"To":       ConnReq.To,
@@ -173,8 +173,7 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		_, err := usersCollection.Doc(ConnReq.From).Update(ctx, []firestore.Update{{
 			Path:  "Notifications",
 			Value: fromUserData["Notifications"],
-		},
-		})
+		}})
 		if err != nil {
 			http.Error(w, "500 : Error While Updating Notifications: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -183,7 +182,34 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: 'Notifications' field is not of type []interface{}")
 	}
 
-	w.Write([]byte("Added User Connection Successfully"))
+	// Update the "To" user's notification
+	if notfs, ok := toUserData["Notifications"].([]interface{}); ok {
+		for i, notf := range notfs {
+			notificationMap := notf.(map[string]interface{})
+			if notificationMap["NID"] == ConnReq.NID {
+				// Update the existing notification
+				notificationMap["IsRead"] = true
+				notificationMap["TimeStamp"] = time.Now().UTC().UnixMilli()
+				notificationMap["Content"] = "You have accepted the connection request from " + fromUserData["UserName"].(string)
+				notificationMap["CType"] = "connAccepted"
+				notfs[i] = notificationMap // Update the list with the modified notification
+				break
+			}
+		}
+
+		_, err = usersCollection.Doc(ConnReq.To).Update(ctx, []firestore.Update{{
+			Path:  "Notifications",
+			Value: notfs,
+		}})
+		if err != nil {
+			http.Error(w, "500 : Error While Updating To User's Notifications: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		fmt.Println("Error: 'Notifications' field is not of type []interface{} for To User")
+	}
+
+	w.Write([]byte("Added User Connection and Updated Notifications Successfully"))
 }
 
 // User wants to delete connection

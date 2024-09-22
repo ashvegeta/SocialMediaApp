@@ -18,13 +18,14 @@ type Notification struct {
 	IsRead    bool
 	TimeStamp int64
 	Content   string
-	CType     string // one of ("connReq", "connAccepted", "media")
+	CType     string // one of ("connRequest", "connAccepted", "media")
 	MetaData  map[string]string
 }
 
 type ConnectionRequest struct {
 	From       string
 	To         string
+	NID        string
 	ConnStatus string
 }
 

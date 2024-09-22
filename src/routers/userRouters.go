@@ -13,6 +13,7 @@ func UserRouter(router *mux.Router) {
 	router.HandleFunc("/conn/request", handlers.RequestConnection).Methods("PUT")
 	router.HandleFunc("/conn/add", handlers.AddConnection).Methods("PUT")
 	router.HandleFunc("/conn/delete", handlers.DelConnection).Methods("POST")
+	router.HandleFunc("/notification/update", handlers.UpdateNotification).Methods("POST")
 	router.HandleFunc("/notification/delete", handlers.DelNotification).Methods("POST")
 	router.HandleFunc("/post/add", handlers.AddPost).Methods("PUT")
 	router.HandleFunc("/search", handlers.Search).Methods("GET")
