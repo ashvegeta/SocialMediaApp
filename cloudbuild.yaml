@@ -1,0 +1,22 @@
+steps:
+  # Step 1: Build your app
+  - name: "gcr.io/cloud-builders/gcloud"
+    args: ["app", "deploy", "--quiet"]
+
+  # Step 2: List all versions of your App Engine service
+  - name: "gcr.io/cloud-builders/gcloud"
+    id: "list-old-versions"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        # Store the current deployed version
+        current_version=$(gcloud app versions list --hide-no-traffic --format="value(version.id)" --sort-by="~version.createTime" | head -n 1)
+        # List and delete all old versions except the current one
+        gcloud app versions list --format="value(version.id)" --filter="version.id != $current_version" | xargs -I {} gcloud app versions delete {} --quiet
+
+substitutions:
+  _APP_ENGINE_SERVICE: "default"
+
+# Specify that only the latest version should be deployed
+timeout: 600s
