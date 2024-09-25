@@ -28,7 +28,7 @@ Choosing the right tech stack involves balancing ease of development, deployment
 ### Frontend Stack
 
 - **Framework:** Next.js  
-  Next.js was chosen for its powerful features like Server-Side Rendering (SSR), automatic code splitting, and simplified routing. These features make it an ideal choice for building fast, modern web applications.
+  Next.js was chosen for its powerful features like Server-Side Rendering (SSR), automatic code splitting, and simplified routing, etc. These features make it an ideal choice for building fast, modern web applications.
 - **Deployment:** Vercel  
   The app is deployed on Vercel, which offers seamless integration with Next.js, making deployment and scaling straightforward.
 
