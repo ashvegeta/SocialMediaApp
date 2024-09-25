@@ -1,13 +1,9 @@
 steps:
-  # Step 1: Clone the latest code from GitHub
-  - name: "gcr.io/cloud-builders/git"
-    args: ["clone", "https://github.com/ashvegeta/SocialMediaApp.git", "."]
-
-  # Step 2: Build your app
+  # Step 1: Build your app (Deploy to App Engine)
   - name: "gcr.io/cloud-builders/gcloud"
     args: ["app", "deploy", "--quiet"]
 
-  # Step 3: List and remove old versions of the App Engine service
+  # Step 2: List and remove old versions of the App Engine service
   - name: "gcr.io/cloud-builders/gcloud"
     id: "list-old-versions"
     entrypoint: "bash"
