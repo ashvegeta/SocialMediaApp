@@ -45,6 +45,7 @@ func Search(w http.ResponseWriter, r *http.Request) {
 
 		// Create a result map to include only the necessary fields based on visibility
 		result := map[string]interface{}{
+			"UID":        doc.Ref.ID,
 			"EmailId":    data["EmailId"],
 			"UserName":   data["UserName"],
 			"Visibility": data["Visibility"],
