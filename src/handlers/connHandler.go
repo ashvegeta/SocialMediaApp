@@ -310,6 +310,38 @@ func DelConnection(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("invalid Friends field type for From user")
 		}
 
+		// Remove the pending request from the user's (From) 'Pending' field
+		pendingRequests, ok := fromUserData["Pending"].([]interface{})
+		if !ok {
+			http.Error(w, "500 : Error While Removing Pending Field: ", http.StatusInternalServerError)
+			return fmt.Errorf("error while removing pending field")
+		}
+
+		var updatedPendingList []map[string]interface{}
+		for _, pending := range pendingRequests {
+			pendingMap, ok := pending.(map[string]interface{})
+			if ok && pendingMap["To"] == ConnReq.To {
+				continue
+			} else {
+				updatedPendingList = append(updatedPendingList, pendingMap)
+			}
+
+		}
+
+		if len(fromUserData["Pending"].([]interface{})) != len(updatedPendingList) {
+			// update the from user's data
+			fromUserData["Pending"] = updatedPendingList
+
+			if len(updatedPendingList) == 0 {
+				fromUserData["Pending"] = []interface{}{}
+			}
+
+			//update From user's pending list
+			if err := tx.Set(fromDocRef, map[string]interface{}{"Pending": fromUserData["Pending"]}, firestore.MergeAll); err != nil {
+				return err
+			}
+		}
+
 		// Remove connection from "To" user
 		toUserData := toUser.Data()
 		if friends, ok := toUserData["Friends"].([]interface{}); ok {
@@ -323,7 +355,7 @@ func DelConnection(w http.ResponseWriter, r *http.Request) {
 			return fmt.Errorf("invalid Friends field type for To user")
 		}
 
-		// Update both users in Firestore
+		// Update both users' Friends list in Firestore
 		if err := tx.Set(fromDocRef, map[string]interface{}{"Friends": fromUserData["Friends"]}, firestore.MergeAll); err != nil {
 			return err
 		}
