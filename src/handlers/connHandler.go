@@ -45,7 +45,7 @@ func RequestConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// add to notifications
+	// Add to notifications for the recipient (To user)
 	fromUserData := fromUser.Data()
 	toUserData := toUser.Data()
 
@@ -64,8 +64,7 @@ func RequestConnection(w http.ResponseWriter, r *http.Request) {
 		_, err := usersCollection.Doc(ConnReq.To).Update(ctx, []firestore.Update{{
 			Path:  "Notifications",
 			Value: toUserData["Notifications"],
-		},
-		})
+		}})
 		if err != nil {
 			http.Error(w, "500 : Error While Updating Notifications: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -74,7 +73,25 @@ func RequestConnection(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error: 'Notifications' field is not of type []interface{}")
 	}
 
-	w.Write([]byte("Added Conn Req to Notifications Successfully"))
+	// Add the connection request to the 'Pending' field of the current user (From user)
+	pendingRequest := map[string]interface{}{
+		"To":        ConnReq.To,
+		"TimeStamp": time.Now().UTC().UnixMilli(),
+	}
+
+	_, err := usersCollection.Doc(ConnReq.From).Update(ctx, []firestore.Update{
+		{
+			Path:  "Pending",
+			Value: firestore.ArrayUnion(pendingRequest),
+		},
+	})
+	if err != nil {
+		http.Error(w, "500 : Error While Updating Pending Field: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success
+	w.Write([]byte("Added Conn Req to Notifications and Pending Successfully"))
 }
 
 // If User decides to accept the connection request
@@ -180,6 +197,37 @@ func AddConnection(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		fmt.Println("Error: 'Notifications' field is not of type []interface{}")
+	}
+
+	// Remove the pending request from the user's (From) 'Pending' field
+	pendingRequests, ok := fromUserData["Pending"].([]interface{})
+	if !ok {
+		http.Error(w, "500 : Error While Removing Pending Field: ", http.StatusInternalServerError)
+		return
+	}
+
+	// Find the pending request that matches the "To" user
+	var pendingRequestToRemove map[string]interface{}
+	for _, pending := range pendingRequests {
+		pendingMap, ok := pending.(map[string]interface{})
+		if ok && pendingMap["To"] == ConnReq.To {
+			pendingRequestToRemove = pendingMap
+			break
+		}
+	}
+
+	if len(pendingRequestToRemove) > 0 {
+		// Remove the pending request from the user's (From) 'Pending' field
+		_, err = usersCollection.Doc(ConnReq.From).Update(ctx, []firestore.Update{
+			{
+				Path:  "Pending",
+				Value: firestore.ArrayRemove(pendingRequestToRemove),
+			},
+		})
+		if err != nil {
+			http.Error(w, "500 : Error While Removing Pending Field: ", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Update the "To" user's notification
