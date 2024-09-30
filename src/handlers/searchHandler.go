@@ -49,6 +49,7 @@ func Search(w http.ResponseWriter, r *http.Request) {
 			"EmailId":    data["EmailId"],
 			"UserName":   data["UserName"],
 			"Visibility": data["Visibility"],
+			"Friends":    data["Friends"],
 		}
 
 		if visibility == "public" {
