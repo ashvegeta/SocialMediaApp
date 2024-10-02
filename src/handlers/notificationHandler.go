@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"socialmediaapp/src/models"
@@ -10,6 +11,12 @@ import (
 
 	"cloud.google.com/go/firestore"
 )
+
+type PostUploadRequest struct {
+	UserID   string `json:"UserID"`
+	PostID   string `json:"PostID"`
+	UserName string `json:"UserName"`
+}
 
 // update notifications
 func UpdateNotification(w http.ResponseWriter, r *http.Request) {
@@ -182,4 +189,87 @@ func removeNotifications(slice []interface{}, elem string) []interface{} {
 		}
 	}
 	return result
+}
+
+func SendNotificationToAllConnections(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	var postReq PostUploadRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&postReq); err != nil {
+		http.Error(w, "400: Bad Request, "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Fetch the user who uploaded the post
+	userDoc, err := usersCollection.Doc(postReq.UserID).Get(ctx)
+	if err != nil {
+		http.Error(w, "404: User not found", http.StatusNotFound)
+		return
+	}
+
+	// Get the list of friends (connected users)
+	userData := userDoc.Data()
+	friends, ok := userData["Friends"].([]interface{})
+	if !ok || len(friends) == 0 {
+		http.Error(w, "User has no connected friends", http.StatusBadRequest)
+		return
+	}
+
+	// Prepare notification content
+	notification := models.Notification{
+		IsRead:  false,
+		Content: fmt.Sprintf("%s has uploaded a new post, watch now", postReq.UserName),
+		CType:   "media",
+		MetaData: map[string]string{
+			"PostID":   postReq.PostID,
+			"UserName": postReq.UserName,
+			"From":     postReq.UserID,
+		},
+	}
+
+	// Initialize BulkWriter for performing bulk writes
+	bulkWriter := fStoreClient.BulkWriter(ctx)
+
+	// Track failed user IDs if any update fails
+	var failedUsers []string
+
+	for _, friend := range friends {
+		friendID := friend.(string)
+
+		// Get friend's document reference
+		friendDocRef := usersCollection.Doc(friendID)
+
+		// Prepare notification NID and timestamp
+		TS := time.Now().UTC().UnixMilli()
+		notification.NID = fmt.Sprintf("%s_%d", friendID, TS)
+		notification.TimeStamp = TS
+
+		// Bulk write: Add the notification to the friend's "Notifications" field
+		_, err := bulkWriter.Update(friendDocRef, []firestore.Update{
+			{
+				Path:  "Notifications",
+				Value: firestore.ArrayUnion(notification),
+			},
+		})
+
+		if err != nil {
+			failedUsers = append(failedUsers, friendID)
+			log.Printf("Error updating user %s: %v", friendID, err)
+		} else {
+			// Optionally handle the `BulkWriterJob` (job) here if needed
+			log.Printf("Successfully queued update for user %s", friendID)
+		}
+	}
+
+	// Close the bulk writer to send the operations
+	bulkWriter.End()
+
+	// Check if any failures occurred
+	if len(failedUsers) > 0 {
+		http.Error(w, fmt.Sprintf("Failed to notify some/all users: %v", failedUsers), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with success
+	w.Write([]byte("Post notifications sent to connected users successfully"))
 }
